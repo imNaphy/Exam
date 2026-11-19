@@ -4,7 +4,12 @@ namespace RoomHub.Api.Domain;
 
 public sealed class Booking
 {
-    public static readonly TimeSpan MaxDuration = TimeSpan.FromHours(4);
+    public const int LargeRoomCapacityThreshold = 10;
+    public const int MaxActiveBookingsPerDayPerUser = 2;
+
+    public static readonly TimeSpan StandardMaxDuration = TimeSpan.FromHours(4);
+    public static readonly TimeSpan LargeRoomMaxDuration = TimeSpan.FromHours(2);
+    public static readonly TimeSpan MinCancellationLeadTime = TimeSpan.FromMinutes(60);
 
     public Guid Id { get; private set; }
     public Guid RoomId { get; private set; }
@@ -35,8 +40,14 @@ public sealed class Booking
         if (range.StartUtc < nowUtc)
             return Error.Validation("BookingInPast", "A booking cannot start in the past.");
 
-        if (range.Duration > MaxDuration)
-            return Error.Validation("DurationExceedsMaximum", "A booking cannot exceed 4 hours.");
+        var maxDuration = room.Capacity > LargeRoomCapacityThreshold
+            ? LargeRoomMaxDuration
+            : StandardMaxDuration;
+
+        if (range.Duration > maxDuration)
+            return Error.Validation(
+                "DurationExceedsMaximum",
+                $"A booking cannot exceed {(int)maxDuration.TotalHours} hours for this room.");
 
         if (attendees <= 0)
             return Error.Validation("InvalidAttendees", "Attendees must be positive.");
@@ -58,10 +69,15 @@ public sealed class Booking
     public bool Overlaps(DateRange other) =>
         Status == BookingStatus.Active && Range.Overlaps(other);
 
-    public Result<Unit> Cancel()
+    public Result<Unit> Cancel(DateTime nowUtc)
     {
         if (Status == BookingStatus.Cancelled)
             return Error.Conflict("BookingAlreadyCancelled", "The booking is already cancelled.");
+
+        if (Range.StartUtc - nowUtc < MinCancellationLeadTime)
+            return Error.Conflict(
+                "CancellationTooLate",
+                "A booking can only be cancelled at least 60 minutes before it starts.");
 
         Status = BookingStatus.Cancelled;
         return Unit.Value;
