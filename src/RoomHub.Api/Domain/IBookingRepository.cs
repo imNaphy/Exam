@@ -2,7 +2,7 @@ namespace RoomHub.Api.Domain;
 
 public interface IBookingRepository
 {
-    Task AddAsync(Booking booking, CancellationToken cancellationToken = default);
+    void Add(Booking booking);
     Task<Booking?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<Booking>> ListByRoomIdAsync(Guid roomId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Booking>> ListActiveByRoomIdAsync(Guid roomId, CancellationToken cancellationToken = default);
 }

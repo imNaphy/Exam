@@ -16,7 +16,7 @@ public static class BookingsEndpoints
         roomBookings.MapPost("", CreateBooking).WithName("CreateBooking");
 
         var bookings = app.MapGroup("/api/bookings").WithTags("Bookings");
-        bookings.MapGet("/{id:guid}", GetBooking).WithName("GetBooking");
+        bookings.MapGet("/{id:guid}", GetBookingEndpoint.HandleAsync).WithName("GetBooking");
         bookings.MapPost("/{id:guid}/cancel", CancelBooking).WithName("CancelBooking");
     }
 
@@ -32,18 +32,6 @@ public static class BookingsEndpoints
 
         return result.IsSuccess
             ? TypedResults.Created($"/api/bookings/{result.Value.Id}", result.Value)
-            : result.Error.ToProblem();
-    }
-
-    private static async Task<Results<Ok<GetBookingResponse>, ProblemHttpResult>> GetBooking(
-        Guid id,
-        ICommandHandler<GetBookingCommand, Result<GetBookingResponse>> handler,
-        CancellationToken cancellationToken)
-    {
-        var result = await handler.HandleAsync(new GetBookingCommand(id), cancellationToken);
-
-        return result.IsSuccess
-            ? TypedResults.Ok(result.Value)
             : result.Error.ToProblem();
     }
 

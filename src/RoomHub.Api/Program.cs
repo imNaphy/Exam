@@ -1,9 +1,12 @@
 using System.Text.Json.Serialization;
+using Microsoft.EntityFrameworkCore;
 using RoomHub.Api.Common.Cqrs;
 using RoomHub.Api.Domain;
+using RoomHub.Api.Domain.Common;
 using RoomHub.Api.Features.Bookings;
 using RoomHub.Api.Features.Rooms;
-using RoomHub.Api.Infrastructure;
+using RoomHub.Api.Infrastructure.Persistence;
+using RoomHub.Api.Infrastructure.Persistence.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,11 +17,23 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<IRoomRepository, InMemoryRoomRepository>();
-builder.Services.AddSingleton<IBookingRepository, InMemoryBookingRepository>();
+
+var connectionString = builder.Configuration.GetConnectionString("Default")
+    ?? "Data Source=roomhub.db";
+
+builder.Services.AddDbContext<RoomHubDbContext>(options =>
+    options.UseSqlite(connectionString));
+
+builder.Services.AddScoped<IUnitOfWork>(sp =>
+    sp.GetRequiredService<RoomHubDbContext>());
+
+builder.Services.AddScoped<IRoomRepository, RoomRepository>();
+builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 builder.Services.AddHandlers(typeof(Program).Assembly);
 
 var app = builder.Build();
+
+await app.InitializeDatabaseAsync();
 
 app.MapGet("/", () => "RoomHub API is running.");
 app.MapRoomsEndpoints();

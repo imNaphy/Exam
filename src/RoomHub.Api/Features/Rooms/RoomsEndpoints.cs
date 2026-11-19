@@ -14,7 +14,7 @@ public static class RoomsEndpoints
         var group = app.MapGroup("/api/rooms").WithTags("Rooms");
 
         group.MapPost("", CreateRoom).WithName("CreateRoom");
-        group.MapGet("/{id:guid}", GetRoom).WithName("GetRoom");
+        group.MapGet("/{id:guid}", GetRoomEndpoint.HandleAsync).WithName("GetRoom");
     }
 
     private static async Task<Results<Created<CreateRoomResponse>, ProblemHttpResult>> CreateRoom(
@@ -28,18 +28,6 @@ public static class RoomsEndpoints
 
         return result.IsSuccess
             ? TypedResults.Created($"/api/rooms/{result.Value.Id}", result.Value)
-            : result.Error.ToProblem();
-    }
-
-    private static async Task<Results<Ok<GetRoomResponse>, ProblemHttpResult>> GetRoom(
-        Guid id,
-        ICommandHandler<GetRoomCommand, Result<GetRoomResponse>> handler,
-        CancellationToken cancellationToken)
-    {
-        var result = await handler.HandleAsync(new GetRoomCommand(id), cancellationToken);
-
-        return result.IsSuccess
-            ? TypedResults.Ok(result.Value)
             : result.Error.ToProblem();
     }
 }

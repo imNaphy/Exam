@@ -7,6 +7,7 @@ namespace RoomHub.Api.Features.Bookings.CreateBooking;
 public sealed class CreateBookingHandler(
     IRoomRepository roomRepository,
     IBookingRepository bookingRepository,
+    IUnitOfWork unitOfWork,
     TimeProvider timeProvider) : ICommandHandler<CreateBookingCommand, Result<CreateBookingResponse>>
 {
     public async Task<Result<CreateBookingResponse>> HandleAsync(
@@ -32,11 +33,12 @@ public sealed class CreateBookingHandler(
 
         var booking = bookingResult.Value;
 
-        var existingBookings = await bookingRepository.ListByRoomIdAsync(room.Id, cancellationToken);
-        if (existingBookings.Any(existing => existing.Overlaps(booking.Range)))
+        var activeBookings = await bookingRepository.ListActiveByRoomIdAsync(room.Id, cancellationToken);
+        if (activeBookings.Any(existing => existing.Overlaps(booking.Range)))
             return Error.Conflict("RoomOccupied", "The room is occupied in this interval.");
 
-        await bookingRepository.AddAsync(booking, cancellationToken);
+        bookingRepository.Add(booking);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new CreateBookingResponse(booking.Id, booking.RoomId, booking.Status);
     }
